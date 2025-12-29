@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 import os
 from app.database.vector_store import run_semantic_search_for_queries
 from app.database.mongo import get_documents_by_ids
+from app.agents.answer_generator import generate_answer
+from app.agents.multi_query_generator import generate_multi_queries
 
 load_dotenv()
 
@@ -38,13 +40,11 @@ app.add_middleware(
     summary="Process a query with an optional law ID",
 )
 async def query(request: QueryRequest):
-    # multi_queries = generate_multi_queries(request.query)
-    multi_queries = [
-        "Kakšno vlogo ima državni zbor?",
-        "Kaj je državni svet?",
-        "Kako deluje parlament?",
-    ]
-    semantic_search_results = run_semantic_search_for_queries(multi_queries)
+    print(request.query)
+    multi_queries = generate_multi_queries(request.query)
+    print(f"Generated multi queries: {multi_queries.queries}")
+
+    semantic_search_results = run_semantic_search_for_queries(multi_queries.queries)
     print(f"Semantic search results count: {len(semantic_search_results)}")
 
     doc_ids = list({result["id"] for result in semantic_search_results})
@@ -53,4 +53,7 @@ async def query(request: QueryRequest):
     documents = get_documents_by_ids(doc_ids=doc_ids)
     print(f"Retrieved {len(documents)} documents from MongoDB")
 
-    return {"doc_ids": doc_ids}
+    answer = generate_answer(request.query, documents)
+    print(f"Generated answer: {answer}")
+
+    return {"answer": answer, "sources": documents}
