@@ -45,18 +45,6 @@ def run_semantic_search_for_queries(queries):
     return all_results
 
 
-# for query in queries:
-
-# Semantic search
-# query_embeddings = embeddings.embed_query(query)
-# dense_results = dense_index.query(
-#     vector=query_embeddings,
-#     top_k=5,
-#     include_metadata=True,
-#     include_values=False
-# )
-# dense_search_results.extend(dense_results.matches)
-
 # Lexical search
 # sparse_results = sparse_index.query(
 #     namespace='__default__',

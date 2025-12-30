@@ -8,19 +8,14 @@ from app.database.vector_store import run_semantic_search_for_queries
 from app.database.mongo import get_documents_by_ids
 from app.agents.answer_generator import generate_answer
 from app.agents.multi_query_generator import generate_multi_queries
+from app.agents.query_classifier_agent import classify_query
+from app.graphs.query_graph import query_graph
+from typing import Literal
+from app.models.LawId import LawId
 
 load_dotenv()
 
 origin_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-
-
-class QueryRequest(BaseModel):
-    query: str
-    law_id: Optional[str] = Field(
-        default=None,
-        description="Optional law ID associated with the query",
-        alias="lawId",
-    )
 
 
 app = FastAPI()
@@ -33,6 +28,15 @@ app.add_middleware(
 )
 
 
+class QueryRequest(BaseModel):
+    query: str
+    law_id: LawId = Field(
+        default=None,
+        description="Optional law ID associated with the query",
+        alias="lawId",
+    )
+
+
 @app.post(
     "/query",
     status_code=200,
@@ -40,20 +44,26 @@ app.add_middleware(
     summary="Process a query with an optional law ID",
 )
 async def query(request: QueryRequest):
-    print(request.query)
-    multi_queries = generate_multi_queries(request.query)
-    print(f"Generated multi queries: {multi_queries.queries}")
+    test = query_graph.invoke({"user_input": request.query, "messages": []})
+    print(test)
+    # query_type = classify_query(request.query)
+    # print(query_type)
 
-    semantic_search_results = run_semantic_search_for_queries(multi_queries.queries)
-    print(f"Semantic search results count: {len(semantic_search_results)}")
+    # multi_queries = generate_multi_queries(request.query)
+    # print(f"Generated multi queries: {multi_queries.queries}")
 
-    doc_ids = list({result["id"] for result in semantic_search_results})
-    print(f"Document IDs: {doc_ids}")
+    # semantic_search_results = run_semantic_search_for_queries(multi_queries.queries)
+    # print(f"Semantic search results count: {len(semantic_search_results)}")
 
-    documents = get_documents_by_ids(doc_ids=doc_ids)
-    print(f"Retrieved {len(documents)} documents from MongoDB")
+    # doc_ids = list({result["id"] for result in semantic_search_results})
+    # print(f"Document IDs: {doc_ids}")
 
-    answer = generate_answer(request.query, documents)
-    print(f"Generated answer: {answer}")
+    # documents = get_documents_by_ids(doc_ids=doc_ids)
+    # print(f"Retrieved {len(documents)} documents from MongoDB")
 
-    return {"answer": answer, "sources": documents}
+    # answer = generate_answer(request.query, documents)
+    # print(f"Generated answer: {answer}")
+
+    # return {"answer": answer, "sources": documents}
+
+    return {"answer": "answer", "sources": "documents"}
