@@ -10,7 +10,7 @@ load_dotenv()
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1)
 
 
-class QueryClassification(BaseModel):
+class QueryClassificationResponse(BaseModel):
     query_type: QueryType = Field(..., description="Query type")
 
 
@@ -35,7 +35,7 @@ Provide the classification in the following JSON format (strictly, no extra text
 
 """
 
-agent = create_agent(model=llm, response_format=QueryClassification)
+agent = create_agent(model=llm, response_format=QueryClassificationResponse)
 
 
 def classify_query(user_input: str):

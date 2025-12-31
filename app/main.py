@@ -44,7 +44,14 @@ class QueryRequest(BaseModel):
     summary="Process a query with an optional law ID",
 )
 async def query(request: QueryRequest):
-    test = query_graph.invoke({"user_input": request.query, "messages": []})
+    test = query_graph.invoke(
+        {
+            "user_input": request.query,
+            "messages": [],
+            "sources": [],
+            "document": "1. člen ustave določa, da je Slovenija demokratična republika.",
+        }
+    )
     print(test)
     # query_type = classify_query(request.query)
     # print(query_type)
