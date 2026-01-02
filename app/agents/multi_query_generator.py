@@ -20,7 +20,7 @@ multi_query_generator = create_agent(model=llm, response_format=MultiQueryGenera
 
 system_prompt = """
 You are an expert legal assistant and expert in slovene language and legal system. Your task is to generate multiple relevant queries in Slovene language based on a user's input, which is likely to also be in Slovene language.
-Given the user's input, create a list of three queries that can help in retrieving pertinent legal information from a RAG system.
+Given the user's input, create a list of 6 queries that can help in retrieving pertinent legal information from a RAG system.
 Ensure that the queries are clear and directly related to the user's original input but also broad enough to retrieve all information needed. Information is stored as a collection of articles.
 Format the output as a JSON object with a single key "queries" containing an array of query strings.
 Example Output:

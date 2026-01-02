@@ -1,6 +1,7 @@
 from pymongo.mongo_client import MongoClient
 from dotenv import load_dotenv
 import os
+from app.models.Document import Document
 
 load_dotenv()
 
@@ -24,7 +25,7 @@ def get_documents_by_ids(doc_ids, db_name="pravni-vodnik", collection_name="arti
 def get_laws(include_description: bool = False):
     db = mongo_client.get_database("pravni-vodnik")
     collection = db.get_collection("laws")
-    laws = collection.find({}, {"description": 0}).to_list()
+    laws = collection.find({}, {"description": include_description}).to_list()
     print(laws)
 
 
@@ -37,3 +38,10 @@ def list_laws():
 
     all_laws = [law["law_id"] for law in laws]
     print(all_laws)
+
+
+def save_document(document: Document, version: int = 1):
+    if version == 1:
+        col = get_collection("documents")
+        result = col.insert_one(document)
+        return result.inserted_id

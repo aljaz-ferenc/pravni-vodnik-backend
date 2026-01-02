@@ -10,8 +10,9 @@ from app.agents.answer_generator import generate_answer
 from app.agents.multi_query_generator import generate_multi_queries
 from app.agents.query_classifier_agent import classify_query
 from app.graphs.query_graph import query_graph
-from typing import Literal
+from app.database.mongo import save_document
 from app.models.LawId import LawId
+from app.models.Document import Document
 
 load_dotenv()
 
@@ -44,15 +45,33 @@ class QueryRequest(BaseModel):
     summary="Process a query with an optional law ID",
 )
 async def query(request: QueryRequest):
-    test = query_graph.invoke(
+    result = query_graph.invoke(
         {
             "user_input": request.query,
             "messages": [],
             "sources": [],
-            "document": "1. člen ustave določa, da je Slovenija demokratična republika.",
+            "document": "",
+            "answer": "",
+            "title": "",
         }
     )
-    print(test)
+    print(result)
+
+    doc: Document = {
+        # "queries": [result["user_input"]],
+        # "sources": result["sources"],
+        "versions": [
+            {
+                "query": result["user_input"],
+                "sources": result["sources"],
+                "content": result["document"],
+                "title": result["title"],
+            }
+        ],
+    }
+
+    inserted_id = save_document(doc)
+
     # query_type = classify_query(request.query)
     # print(query_type)
 
@@ -73,4 +92,4 @@ async def query(request: QueryRequest):
 
     # return {"answer": answer, "sources": documents}
 
-    return {"answer": "answer", "sources": "documents"}
+    return {"documentId": str(inserted_id)}

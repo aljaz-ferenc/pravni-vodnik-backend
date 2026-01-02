@@ -8,6 +8,7 @@ class DocumentUpdate(BaseModel):
         ...,
         description="Updated document created by combining the old document with new answer.",
     )
+    title: str = Field(description="Title of the document")
 
 
 document_updater_agent = create_agent(
@@ -24,17 +25,20 @@ system_prompt = """
     Return the document in markdown format. Use headings, lists, paragraphs and any other markdown feature you think is appropriate.
     You can update the text, add new sections etc.
     Use professional language in Slovene.
+    You can also update the title so it matches the added content.
+    Do NOT include the title in the 'document'. Put the title in the 'title' field.
 """
 
 
-def update_document(old_doc: str, new_answer: str):
+def synthesize_document(old_doc: str, new_answer: str, user_input: str, title: str):
     result = document_updater_agent.invoke(
         {
             "messages": [
                 SystemMessage(content=system_prompt),
                 HumanMessage(
                     content=f"""
-            PREVIOUS DOCUMENT: {old_doc}\n\n
+            USER'S QUESTION: {user_input}\n\n
+            PREVIOUS DOCUMENT: {title}\n {old_doc}\n\n
             NEW ANSWER: {new_answer}
         """
                 ),
@@ -42,4 +46,4 @@ def update_document(old_doc: str, new_answer: str):
         }
     )
 
-    return result["structured_response"].document
+    return result["structured_response"].document, result["structured_response"].title
