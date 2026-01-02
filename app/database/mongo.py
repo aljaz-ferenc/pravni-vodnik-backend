@@ -2,6 +2,7 @@ from pymongo.mongo_client import MongoClient
 from dotenv import load_dotenv
 import os
 from app.models.Document import Document
+from app.models.Article import Article
 
 load_dotenv()
 
@@ -15,11 +16,13 @@ def get_collection(collection):
     return db.get_collection(collection)
 
 
-def get_documents_by_ids(doc_ids, db_name="pravni-vodnik", collection_name="articles"):
+def get_documents_by_ids(
+    doc_ids: list[str], db_name="pravni-vodnik", collection_name="articles"
+):
     db = mongo_client.get_database(db_name)
     collection = db.get_collection(collection_name)
-    documents = collection.find({"_id": {"$in": doc_ids}})
-    return list(documents)
+    documents = collection.find({"_id": {"$in": doc_ids}}).to_list()
+    return documents
 
 
 def get_laws(include_description: bool = False):

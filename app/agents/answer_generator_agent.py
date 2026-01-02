@@ -31,10 +31,10 @@ Example Output:
 """
 
 
-def generate_answer(user_query: str, documents: list[dict]) -> AnswerGenerator:
+def generate_answer_from_docs(user_query: str, documents: list):
     try:
         docs_content = "\n\n".join(
-            [f"Document {i + 1}:\n{doc['text']}" for i, doc in enumerate(documents)]
+            [f"Document {i + 1}:\n{doc.chunk_text}" for i, doc in enumerate(documents)]
         )
         user_prompt = f"User Query: {user_query}\n\nDocuments:\n{docs_content}"
         response = answer_generator.invoke(

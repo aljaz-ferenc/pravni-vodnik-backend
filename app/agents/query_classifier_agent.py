@@ -22,7 +22,7 @@ Query types:
 2. **broad** – The user asks a general topic spanning multiple articles (e.g., “What rights do citizens have regarding education?”).
 3. **general** – The user asks about a general legal concept without specifying a law (e.g., “What is the right to property in Slovenia?”).
 4. **procedural** – The user asks about legal procedures (e.g., “How do I appeal a court decision?”).
-5. **comparative** – The user asks for a comparison between articles or laws (e.g., “Difference between Article 5 and Article 6?”).
+5. **comparative** – The user asks for a comparison between specific articles (e.g., “Difference between Article 5 and Article 6?”). Only use 'comparative' if specific articles and laws can be extracted from the user's question.
 6. **reference** – The user asks for citations or sources (e.g., “Where is the right to education defined?”).
 7. **unrelated** - The user query is unrelated to law (e.g., small talk, casual questions, personal topics...)
 

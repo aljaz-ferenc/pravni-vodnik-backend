@@ -5,6 +5,14 @@ from app.agents.query_classifier_agent import classify_query
 from typing import Optional
 from app.agents.exact_article_agent import run_exact_article_agent
 from app.agents.synthesizer_agent import synthesize_document
+from app.agents.multi_query_generator_agent import generate_multi_queries
+from app.database.vector_store import (
+    run_semantic_search_for_queries,
+    rerank_results,
+    extract_docs_from_rerank_result,
+)
+from app.database.mongo import get_documents_by_ids
+from app.agents.answer_generator_agent import generate_answer_from_docs
 
 
 class State(MessagesState):
@@ -32,6 +40,29 @@ def exact_query_node(state: State):
     return state
 
 
+def broad_query_node(state: State):
+    queries = generate_multi_queries(state["user_input"])
+    results = run_semantic_search_for_queries(queries)
+    ids = [result["id"] for result in results]
+    unique_ids = list({*ids})
+    state["sources"] = unique_ids
+    docs = get_documents_by_ids(doc_ids=unique_ids, collection_name="articles")
+    rerank_docs = [{"id": str(d["_id"]), "chunk_text": d["text"]} for d in docs]
+    top_rerank = rerank_results(query=state["user_input"], docs=rerank_docs)
+
+    reranked_docs = [data for data in top_rerank.data]
+    score_threshold = 0.2
+    filtered_docs = [d for d in reranked_docs if d["score"] > score_threshold]
+
+    answer = generate_answer_from_docs(
+        state["user_input"], [data.document for data in filtered_docs]
+    )
+
+    state["sources"] = [doc.document.id for doc in filtered_docs]
+    state["answer"] = answer
+    return state
+
+
 def synthesize_document_node(state: State):
     final_doc, title = synthesize_document(
         state["document"], state["answer"], state["user_input"], state["title"]
@@ -46,6 +77,8 @@ def router_node(state: State):
     match state["query_type"]:
         case "exact":
             return "exact"
+        case "broad":
+            return "broad"
         case _:
             return END
 
@@ -55,12 +88,14 @@ graph_builder = StateGraph(State)
 
 graph_builder.add_node("classify_query", classify_query_node)
 graph_builder.add_node("exact", exact_query_node)
-graph_builder.add_node("update_doc", synthesize_document_node)
+graph_builder.add_node("broad", broad_query_node)
+graph_builder.add_node("synthesize_doc", synthesize_document_node)
 
 # EDGES
 graph_builder.add_edge(START, "classify_query")
 graph_builder.add_conditional_edges("classify_query", router_node)
-graph_builder.add_edge("exact", "update_doc")
-graph_builder.add_edge("update_doc", END)
+graph_builder.add_edge("exact", "synthesize_doc")
+graph_builder.add_edge("broad", "synthesize_doc")
+graph_builder.add_edge("synthesize_doc", END)
 
 query_graph = graph_builder.compile()

@@ -44,7 +44,7 @@ def generate_multi_queries(user_input: str) -> MultiQueryGenerator:
                 ]
             }
         )
-        return response["structured_response"]
+        return response["structured_response"].queries
     except Exception as e:
         print(f"Error generating multi queries: {e}")
         raise e

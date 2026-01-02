@@ -45,6 +45,31 @@ def run_semantic_search_for_queries(queries):
     return all_results
 
 
+def rerank_results(query: str, docs: list):
+    return pc.inference.rerank(
+        model="bge-reranker-v2-m3",
+        query=query,
+        documents=docs,
+        rank_fields=["chunk_text"],
+        return_documents=True,
+        top_n=10,
+    )
+
+
+def extract_docs_from_rerank_result(rerank_result, text_field="chunk_text"):
+    docs = []
+    for hit in rerank_result.data:
+        doc_data = hit.get("document")
+        if not doc_data:
+            continue
+        doc = {k: v for k, v in doc_data.items()}  # shallow copy
+        if text_field in doc:
+            doc["text"] = doc.pop(text_field)  # rename for LLM
+        doc["score"] = hit.get("score", 0)
+        docs.append(doc)
+    return docs
+
+
 # Lexical search
 # sparse_results = sparse_index.query(
 #     namespace='__default__',
