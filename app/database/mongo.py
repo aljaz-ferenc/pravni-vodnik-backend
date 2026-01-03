@@ -39,8 +39,7 @@ def list_laws():
         {}, {"law_id": 1, "_id": 0, "common_abbreviations": 1}
     ).to_list()
 
-    all_laws = [law["law_id"] for law in laws]
-    print(all_laws)
+    return laws
 
 
 def save_document(document: Document, version: int = 1):

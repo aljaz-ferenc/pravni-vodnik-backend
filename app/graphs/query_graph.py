@@ -41,18 +41,30 @@ def exact_query_node(state: State):
 
 
 def broad_query_node(state: State):
+    print("USER_INPUT: ", state["user_input"])
+
     queries = generate_multi_queries(state["user_input"])
+    print("QUERIES: ", queries)
+
     results = run_semantic_search_for_queries(queries)
+    print("RESULTS - semantic search: ", len(results))
+
     ids = [result["id"] for result in results]
     unique_ids = list({*ids})
     state["sources"] = unique_ids
     docs = get_documents_by_ids(doc_ids=unique_ids, collection_name="articles")
-    rerank_docs = [{"id": str(d["_id"]), "chunk_text": d["text"]} for d in docs]
-    top_rerank = rerank_results(query=state["user_input"], docs=rerank_docs)
+    print("DOCS - fetched from Mongo: ", len(docs))
 
+    rerank_docs = [{"id": str(d["_id"]), "chunk_text": d["text"]} for d in docs[:10]]
+    print("RERANK_DOCS: ", len(rerank_docs))
+
+    top_rerank = rerank_results(query=state["user_input"], docs=rerank_docs)
     reranked_docs = [data for data in top_rerank.data]
-    score_threshold = 0.2
+    print("RERANKED_DOCS: ", len(reranked_docs))
+
+    score_threshold = 0
     filtered_docs = [d for d in reranked_docs if d["score"] > score_threshold]
+    print("FILTERED_DOCS: ", len(filtered_docs))
 
     answer = generate_answer_from_docs(
         state["user_input"], [data.document for data in filtered_docs]

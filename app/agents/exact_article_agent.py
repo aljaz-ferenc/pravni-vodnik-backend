@@ -5,8 +5,9 @@ from pydantic import BaseModel, Field
 from app.database.mongo import mongo_client
 from app.database.mongo import list_laws
 from langchain.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 
-llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.1)
+llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0.1)
 
 
 class ExactArticleResponse(BaseModel):
@@ -42,7 +43,7 @@ system_prompt = f"""
 You are a legal assistant. Your job is to answer the user's question by fetching the specific articles from the database.
 Instructions:
 1. Return the answer that will make it easy for the next agent to synthesize into a formatted document.
-2. Identify the law_id and article_number(s) from the user's question.
+2. Identify the law_id and article_number(s) from the user's question. An article_number is a string that represent a number (e.g., '108') or a string that has additional letter after a number separated by a dot (e.g., '108.a') 
 3. For each article_number, call the tool `get_article` with law_id and article_number.
 4. If an article is not found, indicate that in your answer.
 5. Combine the contents of all fetched articles to answer the question.

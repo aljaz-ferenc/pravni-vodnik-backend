@@ -22,11 +22,11 @@ system_prompt = """
     You are also provided an answer from the user's latest question and the question itself.
     Your job is to combine the answer and the document into one document and
     return the updated document that contains previous and new information.
-    Return the document in markdown format. Use headings, lists, paragraphs and any other markdown feature you think is appropriate.
+    Return the document in markdown format. Use subheadings, lists, paragraphs and any other markdown feature you think is appropriate.
     You can update the text, add new sections etc.
     Use professional language in Slovene.
     You can also update the title so it matches the added content.
-    Do NOT include the title in the 'document'. Put the title in the 'title' field.
+    IMPORTANT: Do NOT include the title (# header) in the markdown. Put the title in the 'title' field.
 """
 
 
