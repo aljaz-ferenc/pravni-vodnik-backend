@@ -9,7 +9,7 @@ from app.agents.multi_query_generator_agent import generate_multi_queries
 from app.agents.concept_expansion_agent import expand_concept
 from app.database.vector_store import (
     run_semantic_search_for_queries,
-    rerank_results,
+    rerank_chunks,
 )
 from app.agents.answer_generator_agent import generate_answer_from_docs
 
@@ -43,35 +43,14 @@ def broad_query_node(state: State):
     queries = generate_multi_queries(state["user_input"])
     chunks = run_semantic_search_for_queries(queries)
 
-    reranked_chunks = rerank_results(
-        state["user_input"],
-        [
-            {
-                "id": chunk["id"],
-                "chunk_text": chunk["metadata"]["chunk_text"],
-                "metadata": {"article_id": chunk["metadata"]["article_id"]},
-            }
-            for chunk in chunks
-        ],
+    top_chunks, sources = rerank_chunks(
+        user_input=state["user_input"],
+        chunks=chunks,
+        score_threshold=0.1,
+        max_top_chunks=10,
     )
 
-    SCORE_TRESHOLD = 0.1
-    top_chunks = [
-        item for item in reranked_chunks.data if item["score"] > SCORE_TRESHOLD
-    ]
-    print(f"SCORES:")
-    for chunk in top_chunks:
-        print(chunk["score"])
-
-    seen = set()
-    unique_article_ids = []
-    for chunk in top_chunks:
-        article_id = chunk["document"]["metadata"]["article_id"]
-        if article_id not in seen:
-            seen.add(article_id)
-            unique_article_ids.append(article_id)
-
-    state["sources"] = unique_article_ids
+    state["sources"] = sources
 
     answer = generate_answer_from_docs(
         state["user_input"],
@@ -91,38 +70,15 @@ def broad_query_node(state: State):
 def general_query_node(state: State):
     hypothetical_doc = expand_concept(state["user_input"])
     chunks = run_semantic_search_for_queries([hypothetical_doc])
-    reranked_chunks = rerank_results(
-        state["user_input"],
-        [
-            {
-                "id": chunk["id"],
-                "chunk_text": chunk["metadata"]["chunk_text"],
-                "metadata": {"article_id": chunk["metadata"]["article_id"]},
-            }
-            for chunk in chunks
-        ],
+
+    top_chunks, sources = rerank_chunks(
+        user_input=state["user_input"],
+        chunks=chunks,
+        score_threshold=0.05,
+        max_top_chunks=8,
     )
 
-    SCORE_TRESHOLD = 0.05
-    top_chunks = [
-        item for item in reranked_chunks.data if item["score"] > SCORE_TRESHOLD
-    ]
-
-    top_chunks = sorted(top_chunks, key=lambda x: x["score"], reverse=True)[:8]
-
-    print(f"SCORES:")
-    for chunk in top_chunks:
-        print(chunk["score"])
-
-    seen = set()
-    unique_article_ids = []
-    for chunk in top_chunks:
-        article_id = chunk["document"]["metadata"]["article_id"]
-        if article_id not in seen:
-            seen.add(article_id)
-            unique_article_ids.append(article_id)
-
-    state["sources"] = unique_article_ids
+    state["sources"] = sources
 
     answer = generate_answer_from_docs(
         state["user_input"],

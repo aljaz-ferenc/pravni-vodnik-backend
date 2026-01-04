@@ -70,6 +70,44 @@ def extract_docs_from_rerank_result(rerank_result, text_field="chunk_text"):
     return docs
 
 
+def rerank_chunks(
+    user_input: str, chunks, score_threshold: float = 0.1, max_top_chunks: int = 8
+):
+    # rerank retrieved chunks
+    reranked_chunks = rerank_results(
+        user_input,
+        [
+            {
+                "id": chunk["id"],
+                "chunk_text": chunk["metadata"]["chunk_text"],
+                "metadata": {"article_id": chunk["metadata"]["article_id"]},
+            }
+            for chunk in chunks
+        ],
+    )
+
+    # filter chunks by score
+    top_chunks = [
+        item for item in reranked_chunks.data if item["score"] > score_threshold
+    ]
+
+    # sort by score max_top_chunks
+    top_chunks = sorted(top_chunks, key=lambda x: x["score"], reverse=True)[
+        :max_top_chunks
+    ]
+
+    # get unique article_ids
+    seen = set()
+    unique_article_ids = []
+    for chunk in top_chunks:
+        article_id = chunk["document"]["metadata"]["article_id"]
+        if article_id not in seen:
+            seen.add(article_id)
+            unique_article_ids.append(article_id)
+
+    return top_chunks, unique_article_ids
+
+
 # Lexical search
 # sparse_results = sparse_index.query(
 #     namespace='__default__',
