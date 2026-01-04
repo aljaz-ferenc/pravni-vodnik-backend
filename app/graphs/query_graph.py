@@ -9,7 +9,6 @@ from app.agents.multi_query_generator_agent import generate_multi_queries
 from app.database.vector_store import (
     run_semantic_search_for_queries,
     rerank_results,
-    extract_docs_from_rerank_result,
 )
 from app.database.mongo import get_documents_by_ids
 from app.agents.answer_generator_agent import generate_answer_from_docs

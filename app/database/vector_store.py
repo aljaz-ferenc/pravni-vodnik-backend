@@ -24,6 +24,15 @@ def run_semantic_search(query: str):
     return sorted(results.matches, key=lambda x: x["score"], reverse=True)
 
 
+def run_semantic_search_for_queries(queries):
+    all_results = []
+    for query in queries:
+        results = run_semantic_search(query)
+        all_results.extend(results)
+
+    return all_results
+
+
 # def run_lexical_search(query: str):
 #     from app.database.bm25 import bm25
 #     results = sparse_index.query(
@@ -34,15 +43,6 @@ def run_semantic_search(query: str):
 #         include_values=False
 #     )
 #     return results.matches
-
-
-def run_semantic_search_for_queries(queries):
-    all_results = []
-    for query in queries:
-        results = run_semantic_search(query)
-        all_results.extend(results)
-
-    return all_results
 
 
 def rerank_results(query: str, docs: list):
