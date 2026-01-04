@@ -54,7 +54,13 @@ def broad_query_node(state: State):
         ],
     )
 
-    top_chunks = [item for item in reranked_chunks.data if item["score"] > 0]
+    SCORE_TRESHOLD = 0.1
+    top_chunks = [
+        item for item in reranked_chunks.data if item["score"] > SCORE_TRESHOLD
+    ]
+    print(f"SCORES:")
+    for chunk in top_chunks:
+        print(chunk["score"])
 
     seen = set()
     unique_article_ids = []
@@ -66,7 +72,6 @@ def broad_query_node(state: State):
 
     state["sources"] = unique_article_ids
 
-    MAX_CHUNKS = 10
     answer = generate_answer_from_docs(
         state["user_input"],
         [
@@ -74,7 +79,7 @@ def broad_query_node(state: State):
                 "chunk_text": item["document"]["chunk_text"],
                 "article_id": item["document"]["metadata"]["article_id"],
             }
-            for item in top_chunks[:MAX_CHUNKS]
+            for item in top_chunks
         ],
     )
 

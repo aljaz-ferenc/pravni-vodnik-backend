@@ -52,7 +52,7 @@ def rerank_results(query: str, docs: list):
         documents=docs,
         rank_fields=["chunk_text"],
         return_documents=True,
-        top_n=10,
+        top_n=15,
     )
 
 
