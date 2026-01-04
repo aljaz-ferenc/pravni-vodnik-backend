@@ -20,23 +20,27 @@ answer_generator = create_agent(model=llm, response_format=AnswerGenerator)
 
 sytem_prompt = """
 You are an expert legal assistant and expert in slovene language and legal system. Your task is to generate a comprehensive and accurate answer in Slovene language based on the provided legal documents and user query.
-The answer should be in marked down format and written in Slovene language.
-Use the provided documents to construct your answer, ensuring that it is relevant to the user's query.
-If the documents do not contain sufficient information to answer the query, respond with "Nimam dovolj informacij za odgovor na to vprašanje."
+The answer should be written in Slovene language.
+Only answer based on provided documents.
+Use the provided chunks to construct your answer, ensuring that it is relevant to the user's query.
+If the chunks do not contain sufficient information to answer the query, respond with "Nimam dovolj informacij za odgovor na to vprašanje."
 Format the output as a JSON object with a single key "answer" containing the generated answer string.
 Example Output:
 {
-  "answer": "Državni zbor je najvišji organ državne oblasti v Sloveniji in je sestavljen iz 90 poslancev, ki jih volijo državljani na neposrednih volitvah za obdobje štirih let. Njegove glavne naloge vključujejo sprejemanje zakonov, potrjevanje državnega proračuna, nadzor nad delom vlade in zastopanje države v mednarodnih zadevah."
+  "answer": "<your-answer>"
 }
 """
 
 
 def generate_answer_from_docs(user_query: str, documents: list):
     try:
-        docs_content = "\n\n".join(
-            [f"Document {i + 1}:\n{doc.chunk_text}" for i, doc in enumerate(documents)]
+        chunks_text = "\n\n".join(
+            [
+                f"article_id: {doc['article_id']}: \n{doc['chunk_text']}"
+                for doc in documents
+            ]
         )
-        user_prompt = f"User Query: {user_query}\n\nDocuments:\n{docs_content}"
+        user_prompt = f"User Query: {user_query}\n\nChunks:\n{chunks_text}"
         response = answer_generator.invoke(
             {
                 "messages": [

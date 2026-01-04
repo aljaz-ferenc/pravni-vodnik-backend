@@ -8,7 +8,10 @@ load_dotenv()
 
 uri = os.getenv("MONGODB_URI")
 
-mongo_client = MongoClient(uri)
+if not uri:
+    raise ValueError("MONGODB_URL missing...")
+
+mongo_client: MongoClient = MongoClient(uri)
 
 
 def get_collection(collection):
