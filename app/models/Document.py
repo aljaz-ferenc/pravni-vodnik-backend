@@ -1,4 +1,5 @@
 from typing import TypedDict
+from datetime import datetime
 
 
 class DocumentVersion(TypedDict):
@@ -6,6 +7,7 @@ class DocumentVersion(TypedDict):
     sources: list[str]
     content: str
     title: str
+    created_at: datetime
 
 
 class Document(TypedDict):

@@ -113,6 +113,8 @@ def router_node(state: State):
             return "broad"
         case "general":
             return "general"
+        case "unrelated":
+            return "end"
         case _:
             return END
 
@@ -128,7 +130,11 @@ graph_builder.add_node("general", general_query_node)
 
 # EDGES
 graph_builder.add_edge(START, "classify_query")
-graph_builder.add_conditional_edges("classify_query", router_node)
+graph_builder.add_conditional_edges(
+    "classify_query",
+    router_node,
+    {"exact": "exact", "broad": "broad", "general": "general", "end": END},
+)
 graph_builder.add_edge("exact", "synthesize_doc")
 graph_builder.add_edge("broad", "synthesize_doc")
 graph_builder.add_edge("general", "synthesize_doc")

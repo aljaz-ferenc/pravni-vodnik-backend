@@ -7,6 +7,7 @@ from app.graphs.query_graph import query_graph
 from app.database.mongo import save_document
 from app.models.LawId import LawId
 from app.models.Document import Document
+from datetime import datetime
 
 load_dotenv()
 
@@ -49,41 +50,21 @@ async def query(request: QueryRequest):
             "title": "",
         }
     )
-    print(result)
+
+    if result["query_type"] == "unrelated":
+        return {"error": "unrelated"}
 
     doc: Document = {
-        # "queries": [result["user_input"]],
-        # "sources": result["sources"],
         "versions": [
             {
                 "query": result["user_input"],
                 "sources": result["sources"],
                 "content": result["document"],
                 "title": result["title"],
+                "created_at": datetime.now(),
             }
         ],
     }
 
     inserted_id = save_document(doc)
-
-    # query_type = classify_query(request.query)
-    # print(query_type)
-
-    # multi_queries = generate_multi_queries(request.query)
-    # print(f"Generated multi queries: {multi_queries.queries}")
-
-    # semantic_search_results = run_semantic_search_for_queries(multi_queries.queries)
-    # print(f"Semantic search results count: {len(semantic_search_results)}")
-
-    # doc_ids = list({result["id"] for result in semantic_search_results})
-    # print(f"Document IDs: {doc_ids}")
-
-    # documents = get_documents_by_ids(doc_ids=doc_ids)
-    # print(f"Retrieved {len(documents)} documents from MongoDB")
-
-    # answer = generate_answer(request.query, documents)
-    # print(f"Generated answer: {answer}")
-
-    # return {"answer": answer, "sources": documents}
-
     return {"documentId": str(inserted_id)}
