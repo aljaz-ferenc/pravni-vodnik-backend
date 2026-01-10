@@ -21,8 +21,7 @@ Query types:
 1. **exact** – The user asks about one or more specific articles or clauses and wants their content explained or summarized (e.g., “What does Article 5 say?” or “What do Articles 5 and 6 say?”).
 2. **broad** – The user asks a general topic spanning multiple articles (e.g., “What rights do citizens have regarding education?”).
 3. **general** – The user asks about a general legal concept without specifying a law (e.g., “What is the right to property in Slovenia?”).
-4. **comparative** – The user asks for a comparison between specific articles (e.g., “Difference between Article 5 and Article 6?”). Only use 'comparative' if specific articles and laws can be extracted from the user's question.
-5. **unrelated** - The user query is unrelated to law (e.g., small talk, casual questions, personal topics...)
+4. **unrelated** - The user query is unrelated to law (e.g., small talk, casual questions, personal topics...)
 
 Provide the classification in the following JSON format (strictly, no extra text):
 

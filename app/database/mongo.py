@@ -1,7 +1,7 @@
 from pymongo.mongo_client import MongoClient
 from dotenv import load_dotenv
 import os
-from app.models.Document import Document
+from app.models.Document import DocumentVersion
 
 load_dotenv()
 
@@ -44,8 +44,15 @@ def list_laws():
     return laws
 
 
-def save_document(document: Document, version: int = 1):
+def save_document(documentVersion: DocumentVersion, version: int = 1):
+    print("DOCUMENT_VERSION: ", documentVersion)
     if version == 1:
-        col = get_collection("documents")
-        result = col.insert_one(document)
-        return result.inserted_id
+        versions = [documentVersion]
+        print("VERSIONS: ", versions)
+        try:
+            col = get_collection("documents")
+            result = col.insert_one({"versions": versions})
+            return result.inserted_id
+        except Exception as e:
+            print("MONGO_ERR: ", e)
+            raise e

@@ -6,8 +6,13 @@ import os
 from app.graphs.query_graph import query_graph
 from app.database.mongo import save_document
 from app.models.LawId import LawId
-from app.models.Document import Document
+from app.models.Document import DocumentVersion
+from app.models.GraphState import GraphState
 from datetime import datetime
+from sse_starlette.sse import EventSourceResponse
+from sse_starlette import ServerSentEvent
+import json
+from app.models.events import DoneEventData
 
 load_dotenv()
 
@@ -33,38 +38,89 @@ class QueryRequest(BaseModel):
     )
 
 
-@app.post(
+@app.get(
     "/query",
     status_code=200,
     tags=["query"],
     summary="Process a query with an optional law ID",
 )
-async def query(request: QueryRequest):
-    result = query_graph.invoke(
-        {
-            "user_input": request.query,
-            "messages": [],
-            "sources": [],
-            "document": "",
-            "answer": "",
-            "title": "",
-        }
-    )
-
-    if result["query_type"] == "unrelated":
-        return {"error": "unrelated"}
-
-    doc: Document = {
-        "versions": [
-            {
-                "query": result["user_input"],
-                "sources": result["sources"],
-                "content": result["document"],
-                "title": result["title"],
-                "created_at": datetime.now(),
-            }
-        ],
+async def query(query: str):
+    initial_state: GraphState = {
+        "user_input": query,
+        "messages": [],
+        "sources": [],
+        "document": "",
+        "answer": "",
+        "title": "",
+        "query_type": None,
     }
 
-    inserted_id = save_document(doc)
-    return {"documentId": str(inserted_id)}
+    async def event_generator():
+        try:
+            for chunk in query_graph.stream(initial_state, stream_mode=["custom"]):
+                tag, payload = chunk
+
+                if tag != "custom":
+                    continue
+
+                if (
+                    isinstance(payload, dict)
+                    and "event" in payload
+                    and "data" in payload
+                ):
+                    event_type = payload["event"]
+                    data = payload["data"]
+
+                    # done event with state
+                    if event_type == "done":
+                        state = payload["data"]["state"]
+
+                        # handle unrelated queries
+                        if state.get("query_type") == "unrelated":
+                            data: DoneEventData = {
+                                "success": False,
+                                "reason": "unrelated_query",
+                                "document_id": "",
+                            }
+                        else:
+                            # create document
+                            try:
+                                document: DocumentVersion = {
+                                    "content": state["document"],
+                                    "created_at": datetime.now(),
+                                    "query": query,
+                                    "sources": state["sources"],
+                                    "title": state["title"],
+                                }
+                                documentId = save_document(document)
+
+                                data: DoneEventData = {
+                                    "document_id": str(documentId),
+                                    "success": True,
+                                    "reason": "",
+                                }
+                            except Exception as e:
+                                print(e)
+                                data: DoneEventData = {
+                                    "success": False,
+                                    "reason": "mongo_error",
+                                    "document_id": "",
+                                }
+
+                                yield ServerSentEvent(
+                                    event="done",
+                                    data=json.dumps(data),
+                                )
+                                return
+
+                    # progress updates from nodes
+                    yield ServerSentEvent(event=event_type, data=json.dumps(data))
+        except Exception as e:
+            print(e)
+            yield ServerSentEvent(
+                event="server_error",
+                data=json.dumps({"success": False, "reason": "internal_error"}),
+            )
+            return
+
+    return EventSourceResponse(event_generator())

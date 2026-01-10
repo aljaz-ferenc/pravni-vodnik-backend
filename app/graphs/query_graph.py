@@ -1,8 +1,5 @@
-from langgraph.graph import StateGraph, START, END, MessagesState
-from typing import List
-from app.models.QueryType import QueryType
+from langgraph.graph import StateGraph, START, END
 from app.agents.query_classifier_agent import classify_query
-from typing import Optional
 from app.agents.exact_article_agent import run_exact_article_agent
 from app.agents.synthesizer_agent import synthesize_document
 from app.agents.multi_query_generator_agent import generate_multi_queries
@@ -12,100 +9,178 @@ from app.database.vector_store import (
     rerank_chunks,
 )
 from app.agents.answer_generator_agent import generate_answer_from_docs
-
-
-class State(MessagesState):
-    user_input: str
-    query_type: Optional[QueryType]
-    sources: List[str]
-    document: str
-    answer: str
-    title: str
+from app.utils.create_sse import create_sse, create_done_sse
+from langgraph.config import get_stream_writer
+from app.models.GraphState import GraphState
 
 
 # NODES
-def classify_query_node(state: State):
-    query_type = classify_query(state["user_input"])
-    state["query_type"] = query_type
-    return state
+def classify_query_node(state: GraphState):
+    try:
+        writer = get_stream_writer()
+
+        writer(create_sse("progress", "query_classification", "Analiza poizvedbe"))
+        query_type = classify_query(state["user_input"])
+
+        state["query_type"] = query_type
+
+        return state
+    except Exception as e:
+        print(e)
+        writer(
+            create_sse(
+                "error",
+                "query_classification",
+                "Prišlo je do napake pri analiziranju poizvedbe",
+            )
+        )
+        raise
 
 
-def exact_query_node(state: State):
-    answer, sources = run_exact_article_agent(state["user_input"])
-    updated_sources = [*state["sources"], *sources]
-    state["sources"] = list({*updated_sources})
-    state["answer"] = answer
+def exact_query_node(state: GraphState):
+    try:
+        writer = get_stream_writer()
+        writer(create_sse("progress", "exact_query", "Iskanje ustrezne zakonodaje"))
+        answer, sources = run_exact_article_agent(state["user_input"])
 
-    return state
+        updated_sources = [*state["sources"], *sources]
+        state["sources"] = list({*updated_sources})
+        state["answer"] = answer
 
+        return state
 
-def broad_query_node(state: State):
-    queries = generate_multi_queries(state["user_input"])
-    chunks = run_semantic_search_for_queries(queries)
-
-    top_chunks, sources = rerank_chunks(
-        user_input=state["user_input"],
-        chunks=chunks,
-        score_threshold=0.1,
-        max_top_chunks=10,
-    )
-
-    state["sources"] = sources
-
-    answer = generate_answer_from_docs(
-        state["user_input"],
-        [
-            {
-                "chunk_text": item["document"]["chunk_text"],
-                "article_id": item["document"]["metadata"]["article_id"],
-            }
-            for item in top_chunks
-        ],
-    )
-
-    state["answer"] = answer
-    return state
+    except Exception as e:
+        print(e)
+        writer(
+            create_sse(
+                "error",
+                "exact_query",
+                "Prišlo je do napake pri iskanju ustrezne zakonodaje",
+            )
+        )
+        raise
 
 
-def general_query_node(state: State):
-    hypothetical_doc = expand_concept(state["user_input"])
-    chunks = run_semantic_search_for_queries([hypothetical_doc])
+def broad_query_node(state: GraphState):
+    try:
+        writer = get_stream_writer()
+        writer(create_sse("progress", "multi_query", "Razčlenjevanje poizvedbe"))
+        queries = generate_multi_queries(state["user_input"])
 
-    top_chunks, sources = rerank_chunks(
-        user_input=state["user_input"],
-        chunks=chunks,
-        score_threshold=0.05,
-        max_top_chunks=8,
-    )
+        writer(create_sse("progress", "semantic_search", "Semantično iskanje členov"))
+        chunks = run_semantic_search_for_queries(queries)
 
-    state["sources"] = sources
+        writer(create_sse("progress", "rerank_chunks", "Vrednotenje najdenih členov"))
+        top_chunks, sources = rerank_chunks(
+            user_input=state["user_input"],
+            chunks=chunks,
+            score_threshold=0.1,
+            max_top_chunks=10,
+        )
 
-    answer = generate_answer_from_docs(
-        state["user_input"],
-        [
-            {
-                "chunk_text": item["document"]["chunk_text"],
-                "article_id": item["document"]["metadata"]["article_id"],
-            }
-            for item in top_chunks
-        ],
-    )
+        state["sources"] = sources
 
-    state["answer"] = answer
-    return state
+        writer(create_sse("progress", "broad_query", "Zbiranje informacij"))
+        answer = generate_answer_from_docs(
+            state["user_input"],
+            [
+                {
+                    "chunk_text": item["document"]["chunk_text"],
+                    "article_id": item["document"]["metadata"]["article_id"],
+                }
+                for item in top_chunks
+            ],
+        )
+
+        state["answer"] = answer
+        return state
+
+    except Exception as e:
+        print(e)
+        writer(
+            create_sse(
+                "error",
+                "exact_query",
+                "Prišlo je do napake pri iskanju relevantne zakonodaje",
+            )
+        )
+        raise
 
 
-def synthesize_document_node(state: State):
-    final_doc, title = synthesize_document(
-        state["document"], state["answer"], state["user_input"], state["title"]
-    )
-    state["document"] = final_doc
-    state["title"] = title
-    return state
+def general_query_node(state: GraphState):
+    try:
+        writer = get_stream_writer()
+
+        writer(create_sse("progress", "expand_concept", "Razumevanje poizvedbe"))
+        hypothetical_doc = expand_concept(state["user_input"])
+
+        writer(
+            create_sse(
+                "progress", "semantic_search", "Semantično iskanje zakonskih določb"
+            )
+        )
+        chunks = run_semantic_search_for_queries([hypothetical_doc])
+
+        writer(create_sse("progress", "rerank_chunks", "Vrednotenje najdenih členov"))
+        top_chunks, sources = rerank_chunks(
+            user_input=state["user_input"],
+            chunks=chunks,
+            score_threshold=0.05,
+            max_top_chunks=8,
+        )
+
+        state["sources"] = sources
+
+        writer(create_sse("progress", "generate_answer", "Zbiranje informacij"))
+        answer = generate_answer_from_docs(
+            state["user_input"],
+            [
+                {
+                    "chunk_text": item["document"]["chunk_text"],
+                    "article_id": item["document"]["metadata"]["article_id"],
+                }
+                for item in top_chunks
+            ],
+        )
+
+        state["answer"] = answer
+        return state
+
+    except Exception as e:
+        print(e)
+        writer(create_sse("error", "general_query", "Prišlo je do napake"))
+        raise
 
 
-def router_node(state: State):
+def synthesize_document_node(state: GraphState):
+    try:
+        writer = get_stream_writer()
+
+        writer(create_sse("progress", "synthesize_document", "Priprava dokumenta"))
+        final_doc, title = synthesize_document(
+            state["document"], state["answer"], state["user_input"], state["title"]
+        )
+        state["document"] = final_doc
+        state["title"] = title
+
+        writer(create_done_sse(state))
+        return state
+
+    except Exception as e:
+        print(e)
+        writer(
+            create_sse(
+                "error",
+                "synthesize_document",
+                "Prišlo je do napake pri pripravi dokumenta",
+            )
+        )
+        raise
+
+
+def router_node(state: GraphState):
     print(f"QUERY TYPE: {state['query_type']}")
+    writer = get_stream_writer()
     match state["query_type"]:
         case "exact":
             return "exact"
@@ -114,13 +189,14 @@ def router_node(state: State):
         case "general":
             return "general"
         case "unrelated":
+            writer({"event": "done", "data": {"state": state}})
             return "end"
         case _:
             return END
 
 
 # GRAPH
-graph_builder = StateGraph(State)
+graph_builder = StateGraph(GraphState)
 
 graph_builder.add_node("classify_query", classify_query_node)
 graph_builder.add_node("exact", exact_query_node)

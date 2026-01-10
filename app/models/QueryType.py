@@ -4,8 +4,5 @@ QueryType = Literal[
     "exact",
     "broad",
     "general",
-    "procedual",
-    "comparative",
-    "reference",
     "unrelated",
 ]
