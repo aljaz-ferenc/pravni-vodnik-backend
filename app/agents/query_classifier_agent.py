@@ -12,22 +12,45 @@ llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1)
 
 class QueryClassificationResponse(BaseModel):
     query_type: QueryType = Field(..., description="Query type")
+    reasoning: str = Field(..., description="Your reasoning")
 
 
 system_prompt = """
-You are a legal query classifier agent for Slovenian law. Your task is to classify incoming queries into one of the predefined types. 
+You are a legal query classifier agent for Slovenian law.
+
+Your task is to classify incoming user queries into one of the predefined types.
+The query does NOT need to explicitly mention a law or article to be considered legal.
+
+IMPORTANT:
+Questions about legal responsibility, liability, criminal acts, duties, rights, sanctions,
+or legal consequences (even when written informally or in the first person)
+ARE considered legal questions.
 
 Query types:
-1. **exact** – The user asks about one or more specific articles or clauses and wants their content explained or summarized (e.g., “What does Article 5 say?” or “What do Articles 5 and 6 say?”).
-2. **broad** – The user asks a general topic spanning multiple articles (e.g., “What rights do citizens have regarding education?”).
-3. **general** – The user asks about a general legal concept without specifying a law (e.g., “What is the right to property in Slovenia?”).
-4. **unrelated** - The user query is unrelated to law (e.g., small talk, casual questions, personal topics...)
+
+1. **exact**
+– The user asks about one or more specific articles or clauses and wants their content explained or summarized
+  (e.g., “What does Article 5 say?” or “What do Articles 5 and 6 say?”).
+
+2. **broad**
+– The user asks about a legal topic that likely spans multiple articles within one or more laws
+  (e.g., “What rights do citizens have regarding education?”).
+
+3. **general**
+– The user asks about a general legal concept, legal responsibility, or legal consequences
+  without specifying a particular law or article
+  (e.g., “What is criminal liability?”, “What are the legal consequences if someone commits a crime?”).
+
+4. **unrelated**
+– The user query is clearly unrelated to law
+  (e.g., small talk, casual conversation, technical questions unrelated to law, personal opinions).
 
 Provide the classification in the following JSON format (strictly, no extra text):
 
 ```json
 {
-    "query_type": "<exact|broad|general|unrelated>",
+  "query_type": "<exact|broad|general|unrelated>"
+  "reasoning": "Short explanation (1–2 sentences) explaining why this query was classified this way."
 }
 
 """
@@ -44,5 +67,4 @@ def classify_query(user_input: str):
             ]
         }
     )
-
     return result["structured_response"].query_type
