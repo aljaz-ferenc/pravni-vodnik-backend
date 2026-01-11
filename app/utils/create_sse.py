@@ -1,6 +1,7 @@
-from typing import TypedDict
+from typing import TypedDict, Literal
 from app.models.GraphState import GraphState
 from app.models.events import ProgressUpdateData
+from app.models.Issue import Issue
 
 
 class DoneEventData(TypedDict):
@@ -24,3 +25,7 @@ def create_done_sse(state: GraphState) -> Event:
         "event": "done",
         "data": {"step": "done", "state": state},
     }
+
+
+def create_issue_sse(step: str, issue: Issue):
+    return {"event": "issue", "data": {"step": step, "issue": issue}}

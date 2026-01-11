@@ -74,44 +74,37 @@ async def query(query: str):
                     # done event with state
                     if event_type == "done":
                         state = payload["data"]["state"]
+                        try:
+                            document: DocumentVersion = {
+                                "content": state["document"],
+                                "created_at": datetime.now(),
+                                "query": query,
+                                "sources": state["sources"],
+                                "title": state["title"],
+                            }
+                            documentId = save_document(document)
 
-                        # handle unrelated queries
-                        if state.get("query_type") == "unrelated":
+                            data: DoneEventData = {
+                                "document_id": str(documentId),
+                                "success": True,
+                                "reason": "",
+                            }
+                        except Exception as e:
+                            print(e)
                             data: DoneEventData = {
                                 "success": False,
-                                "reason": "unrelated_query",
+                                "reason": "mongo_error",
                                 "document_id": "",
                             }
-                        else:
-                            # create document
-                            try:
-                                document: DocumentVersion = {
-                                    "content": state["document"],
-                                    "created_at": datetime.now(),
-                                    "query": query,
-                                    "sources": state["sources"],
-                                    "title": state["title"],
-                                }
-                                documentId = save_document(document)
 
-                                data: DoneEventData = {
-                                    "document_id": str(documentId),
-                                    "success": True,
-                                    "reason": "",
-                                }
-                            except Exception as e:
-                                print(e)
-                                data: DoneEventData = {
-                                    "success": False,
-                                    "reason": "mongo_error",
-                                    "document_id": "",
-                                }
-
-                                yield ServerSentEvent(
-                                    event="done",
-                                    data=json.dumps(data),
-                                )
-                                return
+                            yield ServerSentEvent(
+                                event="done",
+                                data=json.dumps(data),
+                            )
+                            return
+                    if event_type == "issue":
+                        yield ServerSentEvent(event=event_type, data=json.dumps(data))
+                        return
 
                     # progress updates from nodes
                     yield ServerSentEvent(event=event_type, data=json.dumps(data))

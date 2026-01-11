@@ -27,7 +27,7 @@ Provide the classification in the following JSON format (strictly, no extra text
 
 ```json
 {
-    "query_type": "<exact|broad|general|comparative|unrelated>",
+    "query_type": "<exact|broad|general|unrelated>",
 }
 
 """

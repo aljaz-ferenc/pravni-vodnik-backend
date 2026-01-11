@@ -9,18 +9,25 @@ from app.database.vector_store import (
     rerank_chunks,
 )
 from app.agents.answer_generator_agent import generate_answer_from_docs
-from app.utils.create_sse import create_sse, create_done_sse
+from app.utils.create_sse import create_sse, create_done_sse, create_issue_sse
 from langgraph.config import get_stream_writer
 from app.models.GraphState import GraphState
+from langgraph.types import Command
 
 
 # NODES
 def classify_query_node(state: GraphState):
     try:
         writer = get_stream_writer()
-
         writer(create_sse("progress", "query_classification", "Analiza poizvedbe"))
+
         query_type = classify_query(state["user_input"])
+
+        if query_type == "unrelated":
+            writer(
+                create_issue_sse(step="query_classification", issue="unrelated_query")
+            )
+            return Command(goto=END)
 
         state["query_type"] = query_type
 
@@ -78,6 +85,10 @@ def broad_query_node(state: GraphState):
             max_top_chunks=10,
         )
 
+        if len(top_chunks) == 0:
+            writer(create_issue_sse(step="rerank_chunks", issue="low_confidence"))
+            return Command(goto=END)
+
         state["sources"] = sources
 
         writer(create_sse("progress", "broad_query", "Zbiranje informacij"))
@@ -128,6 +139,10 @@ def general_query_node(state: GraphState):
             score_threshold=0.05,
             max_top_chunks=8,
         )
+
+        if len(top_chunks) == 0:
+            writer(create_issue_sse(step="rerank_chunks", issue="low_confidence"))
+            return Command(goto=END)
 
         state["sources"] = sources
 
@@ -180,7 +195,6 @@ def synthesize_document_node(state: GraphState):
 
 def router_node(state: GraphState):
     print(f"QUERY TYPE: {state['query_type']}")
-    writer = get_stream_writer()
     match state["query_type"]:
         case "exact":
             return "exact"
@@ -188,9 +202,6 @@ def router_node(state: GraphState):
             return "broad"
         case "general":
             return "general"
-        case "unrelated":
-            writer({"event": "done", "data": {"state": state}})
-            return "end"
         case _:
             return END
 
