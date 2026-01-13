@@ -81,7 +81,7 @@ def broad_query_node(state: GraphState):
         top_chunks, sources = rerank_chunks(
             user_input=state["user_input"],
             chunks=chunks,
-            score_threshold=0.1,
+            score_threshold=0.2,
             max_top_chunks=10,
         )
 

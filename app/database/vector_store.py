@@ -18,7 +18,7 @@ sparse_index = pc.Index(
 def run_semantic_search(query: str):
     query_embeddings = embeddings.embed_query(query)
     results = dense_index.query(
-        vector=query_embeddings, top_k=5, include_metadata=True, include_values=False
+        vector=query_embeddings, top_k=20, include_metadata=True, include_values=False
     )
 
     return sorted(results.matches, key=lambda x: x["score"], reverse=True)
@@ -31,18 +31,6 @@ def run_semantic_search_for_queries(queries):
         all_results.extend(results)
 
     return all_results
-
-
-# def run_lexical_search(query: str):
-#     from app.database.bm25 import bm25
-#     results = sparse_index.query(
-#         namespace='__default__',
-#         sparse_vector=bm25._encode_single_query(query),
-#         top_k=5,
-#         include_metadata=True,
-#         include_values=False
-#     )
-#     return results.matches
 
 
 def rerank_results(query: str, docs: list):
@@ -62,19 +50,27 @@ def extract_docs_from_rerank_result(rerank_result, text_field="chunk_text"):
         doc_data = hit.get("document")
         if not doc_data:
             continue
-        doc = {k: v for k, v in doc_data.items()}  # shallow copy
+        doc = {k: v for k, v in doc_data.items()}
         if text_field in doc:
-            doc["text"] = doc.pop(text_field)  # rename for LLM
+            doc["text"] = doc.pop(text_field)
         doc["score"] = hit.get("score", 0)
         docs.append(doc)
     return docs
 
 
-def rerank_chunks(
-    user_input: str, chunks, score_threshold: float = 0.1, max_top_chunks: int = 8
-):
-    # rerank retrieved chunks
-    reranked_chunks = rerank_results(
+MAX_RERANK_DOCS = 80
+
+
+def rerank_chunks(user_input: str, chunks, score_threshold=0.03, max_top_chunks=10):
+    unique_chunks = {}
+    for chunk in chunks:
+        unique_chunks[chunk["id"]] = chunk
+
+    deduped_chunks = list(unique_chunks.values())
+
+    deduped_chunks = deduped_chunks[:MAX_RERANK_DOCS]
+
+    reranked = rerank_results(
         user_input,
         [
             {
@@ -82,48 +78,18 @@ def rerank_chunks(
                 "chunk_text": chunk["metadata"]["chunk_text"],
                 "metadata": {"article_id": chunk["metadata"]["article_id"]},
             }
-            for chunk in chunks
+            for chunk in deduped_chunks
         ],
     )
 
-    # filter chunks by score
-    top_chunks = [
-        item for item in reranked_chunks.data if item["score"] > score_threshold
-    ]
+    seen_articles = set()
+    top_chunks = []
+    for item in sorted(reranked.data, key=lambda x: x["score"], reverse=True):
+        aid = item["document"]["metadata"]["article_id"]
+        if aid not in seen_articles:
+            seen_articles.add(aid)
+            top_chunks.append(item)
+        if len(top_chunks) >= max_top_chunks:
+            break
 
-    # sort by score max_top_chunks
-    top_chunks = sorted(top_chunks, key=lambda x: x["score"], reverse=True)[
-        :max_top_chunks
-    ]
-
-    # get unique article_ids
-    seen = set()
-    unique_article_ids = []
-    for chunk in top_chunks:
-        article_id = chunk["document"]["metadata"]["article_id"]
-        if article_id not in seen:
-            seen.add(article_id)
-            unique_article_ids.append(article_id)
-
-    return top_chunks, unique_article_ids
-
-
-# Lexical search
-# sparse_results = sparse_index.query(
-#     namespace='__default__',
-#     sparse_vector=bm25._encode_single_query(query),
-#     top_k=5,
-#     include_metadata=True,
-#     include_values=False
-# )
-# sparse_search_results.extend(sparse_results.matches)
-
-# sorted_dense = sorted(dense_search_results, key=lambda x: x['score'], reverse=True)
-# sorted_sparse = sorted(sparse_search_results, key=lambda x: x['score'], reverse=True)
-
-
-# final_results = [*sorted_dense]
-# print(len(final_results))
-
-# doc_ids = [result['id'] for result in final_results]
-# doc_ids
+    return top_chunks, list(seen_articles)
