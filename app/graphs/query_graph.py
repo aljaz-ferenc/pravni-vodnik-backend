@@ -36,7 +36,7 @@ def classify_query_node(state: GraphState):
         print(e)
         writer(
             create_sse(
-                "error",
+                "graph_error",
                 "query_classification",
                 "Prišlo je do napake pri analiziranju poizvedbe",
             )
@@ -60,7 +60,7 @@ def exact_query_node(state: GraphState):
         print(e)
         writer(
             create_sse(
-                "error",
+                "graph_error",
                 "exact_query",
                 "Prišlo je do napake pri iskanju ustrezne zakonodaje",
             )
@@ -110,7 +110,7 @@ def broad_query_node(state: GraphState):
         print(e)
         writer(
             create_sse(
-                "error",
+                "graph_error",
                 "exact_query",
                 "Prišlo je do napake pri iskanju relevantne zakonodaje",
             )
@@ -163,7 +163,7 @@ def general_query_node(state: GraphState):
 
     except Exception as e:
         print(e)
-        writer(create_sse("error", "general_query", "Prišlo je do napake"))
+        writer(create_sse("graph_error", "general_query", "Prišlo je do napake"))
         raise
 
 
@@ -185,7 +185,7 @@ def synthesize_document_node(state: GraphState):
         print(e)
         writer(
             create_sse(
-                "error",
+                "graph_error",
                 "synthesize_document",
                 "Prišlo je do napake pri pripravi dokumenta",
             )

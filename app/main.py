@@ -17,6 +17,7 @@ from app.models.events import DoneEventData
 load_dotenv()
 
 origin_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+print(origin_url)
 
 
 app = FastAPI()
@@ -112,7 +113,13 @@ async def query(query: str):
             print(e)
             yield ServerSentEvent(
                 event="server_error",
-                data=json.dumps({"success": False, "reason": "internal_error"}),
+                data=json.dumps(
+                    {
+                        "success": False,
+                        "reason": "internal_error",
+                        "message": "Napaka na strežniku",
+                    }
+                ),
             )
             return
 
