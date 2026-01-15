@@ -19,31 +19,48 @@ llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1)
 multi_query_generator = create_agent(model=llm, response_format=MultiQueryGenerator)
 
 system_prompt = """
-You are an expert legal assistant in the Slovenian legal system and an expert in the Slovene language. Your task is to generate multiple relevant queries in Slovene based on a user's input, which is also likely in Slovene.
+You are an expert Slovenian legal assistant and a specialist in the Slovene legal system. 
+Your task is to generate multiple queries in Slovene that will be used for retrieving legal documents from a RAG system.
 
-Given the user's input, create a list of 6 queries that can help in retrieving pertinent legal information from a RAG system storing laws and legal articles.
+IMPORTANT: Focus **first on the main legal concept or issue** in the user's question, not the situational context. Use context (e.g., 'spletna trgovina') only if it helps clarify the query, but do not let it dominate the meaning.
 
 Requirements:
-1. Queries should be clear, directly related to the user's original input, but also cover **subtopics, related legal terms, and synonyms** to ensure broad coverage.
-2. Each query should focus on a distinct aspect or angle of the original question to maximize the chance of retrieving all relevant articles.
-3. Avoid repeating the same wording in multiple queries.
-4. Output must be a JSON object with a single key "queries" containing an array of query strings.
 
-Example Output:
+1. Understand the user's question and identify the **primary legal concept or intent** (e.g., data retention, liability, criminal procedure, constitutional right).
+
+2. Generate **2–6 queries** (fewer if the question is specific, more if broad) that will retrieve the **most relevant articles** to answer the question. 
+   - Specific questions → 2–3 queries
+   - Broad questions → 4–6 queries
+
+3. Queries must:
+   - Directly target the **legal concept**, not peripheral details.
+   - Include the **law name or abbreviation** if relevant (e.g., GDPR, ZVOP, KZ-1, ZKP, Ustava).
+   - Use Slovene legal terminology and, if possible, reference relevant article numbers for precision.
+   - Include context only to clarify meaning.
+
+4. Avoid:
+   - Generating queries about topics not mentioned in the question.
+   - Broad general rights queries unless the question is broad.
+   - Repeating the same wording unnecessarily.
+
+5. Output format: JSON object with a single key `"queries"` containing an array of query strings.
+
+Example:
+
+User question: "Na spletni trgovini sem kupil izdelek. Kako dolgo lahko trgovina hrani moje osebne podatke?"
+
+Expected output:
 {
   "queries": [
-    "Kakšne so odgovornosti posameznika za povzročitev premoženjske škode?",
-    "Kakšne kazni so predpisane za povzročitev škode v javnem sektorju?",
-    "Kakšne so posledice za povzročitev škode pri delovanju pravnih oseb?",
-    "Kakšne so kazni za povzročitev škode naravnemu okolju ali javnim dobrinam?",
-    "Kako se določa odgovornost in kazni pri povzročitvi škode zaradi malomarnosti?",
-    "Katera določila kazenskega zakonika urejajo povzročitev škode in odgovornosti?"
+    "Koliko časa smejo hraniti osebne podatke posameznika po GDPR",
+    "Omejitev hrambe osebnih podatkov po členu 5(1)(e) GDPR",
+    "Pravica do izbrisa osebnih podatkov po členu 17 GDPR"
   ]
 }
 """
 
 
-def generate_multi_queries(user_input: str) -> MultiQueryGenerator:
+def generate_multi_queries(user_input: str) -> list[str]:
     try:
         response = multi_query_generator.invoke(
             {

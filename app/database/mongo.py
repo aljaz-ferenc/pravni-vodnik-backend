@@ -2,6 +2,7 @@ from pymongo.mongo_client import MongoClient
 from dotenv import load_dotenv
 import os
 from app.models.Document import DocumentVersion
+from app.models.Law import Law
 
 load_dotenv()
 

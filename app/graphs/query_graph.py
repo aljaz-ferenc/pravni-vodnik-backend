@@ -13,6 +13,7 @@ from app.utils.create_sse import create_sse, create_done_sse, create_issue_sse
 from langgraph.config import get_stream_writer
 from app.models.GraphState import GraphState
 from langgraph.types import Command
+from app.utils.dedupe_queries import dedupe_queries
 
 
 # NODES
@@ -73,6 +74,7 @@ def broad_query_node(state: GraphState):
         writer = get_stream_writer()
         writer(create_sse("progress", "multi_query", "Razčlenjevanje poizvedbe"))
         queries = generate_multi_queries(state["user_input"])
+        queries = dedupe_queries(queries)
 
         writer(create_sse("progress", "semantic_search", "Semantično iskanje členov"))
         chunks = run_semantic_search_for_queries(queries)
@@ -81,7 +83,7 @@ def broad_query_node(state: GraphState):
         top_chunks, sources = rerank_chunks(
             user_input=state["user_input"],
             chunks=chunks,
-            score_threshold=0.2,
+            score_threshold=0.1,
             max_top_chunks=10,
         )
 
@@ -89,10 +91,8 @@ def broad_query_node(state: GraphState):
             writer(create_issue_sse(step="rerank_chunks", issue="low_confidence"))
             return Command(goto=END)
 
-        state["sources"] = sources
-
         writer(create_sse("progress", "broad_query", "Zbiranje informacij"))
-        answer = generate_answer_from_docs(
+        answer, article_ids = generate_answer_from_docs(
             state["user_input"],
             [
                 {
@@ -103,6 +103,7 @@ def broad_query_node(state: GraphState):
             ],
         )
 
+        state["sources"] = article_ids
         state["answer"] = answer
         return state
 
@@ -144,10 +145,8 @@ def general_query_node(state: GraphState):
             writer(create_issue_sse(step="rerank_chunks", issue="low_confidence"))
             return Command(goto=END)
 
-        state["sources"] = sources
-
         writer(create_sse("progress", "generate_answer", "Zbiranje informacij"))
-        answer = generate_answer_from_docs(
+        answer, article_ids = generate_answer_from_docs(
             state["user_input"],
             [
                 {
@@ -158,6 +157,7 @@ def general_query_node(state: GraphState):
             ],
         )
 
+        state["sources"] = article_ids
         state["answer"] = answer
         return state
 

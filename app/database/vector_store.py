@@ -2,6 +2,7 @@ from pinecone.grpc import PineconeGRPC as Pinecone
 from app.llms.embedding_model import embeddings
 from dotenv import load_dotenv
 import os
+from pinecone import ScoredVector
 
 load_dotenv()
 
@@ -24,8 +25,8 @@ def run_semantic_search(query: str):
     return sorted(results.matches, key=lambda x: x["score"], reverse=True)
 
 
-def run_semantic_search_for_queries(queries):
-    all_results = []
+def run_semantic_search_for_queries(queries: list[str]):
+    all_results: list[ScoredVector] = []
     for query in queries:
         results = run_semantic_search(query)
         all_results.extend(results)
@@ -61,14 +62,9 @@ def extract_docs_from_rerank_result(rerank_result, text_field="chunk_text"):
 MAX_RERANK_DOCS = 80
 
 
-def rerank_chunks(user_input: str, chunks, score_threshold=0.03, max_top_chunks=10):
-    unique_chunks = {}
-    for chunk in chunks:
-        unique_chunks[chunk["id"]] = chunk
-
-    deduped_chunks = list(unique_chunks.values())
-
-    deduped_chunks = deduped_chunks[:MAX_RERANK_DOCS]
+def rerank_chunks(user_input: str, chunks, score_threshold=0.7, max_top_chunks=10):
+    unique_chunks = {chunk["id"]: chunk for chunk in chunks}
+    deduped_chunks = list(unique_chunks.values())[:MAX_RERANK_DOCS]
 
     reranked = rerank_results(
         user_input,
@@ -82,13 +78,18 @@ def rerank_chunks(user_input: str, chunks, score_threshold=0.03, max_top_chunks=
         ],
     )
 
-    seen_articles = set()
+    seen_articles: set[str] = set()
     top_chunks = []
+
     for item in sorted(reranked.data, key=lambda x: x["score"], reverse=True):
+        if item.get("score", 0) < score_threshold:
+            continue
+
         aid = item["document"]["metadata"]["article_id"]
         if aid not in seen_articles:
             seen_articles.add(aid)
             top_chunks.append(item)
+
         if len(top_chunks) >= max_top_chunks:
             break
 

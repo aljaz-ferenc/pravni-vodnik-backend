@@ -3,6 +3,7 @@ from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from langchain.messages import SystemMessage, HumanMessage
+from typing import List
 
 load_dotenv()
 
@@ -12,6 +13,9 @@ class AnswerGenerator(BaseModel):
         ...,
         description="Generated answer based on the retrieved documents and user query",
     )
+    article_ids: List[str] = Field(
+        ..., description="List of article_ids that were used to generate the answer"
+    )
 
 
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1)
@@ -19,15 +23,20 @@ llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1)
 answer_generator = create_agent(model=llm, response_format=AnswerGenerator)
 
 sytem_prompt = """
-You are an expert legal assistant and expert in slovene language and legal system. Your task is to generate a comprehensive and accurate answer in Slovene language based on the provided legal documents and user query.
-The answer should be written in Slovene language.
-Only answer based on provided documents.
-Use the provided chunks to construct your answer, ensuring that it is relevant to the user's query.
-If the chunks do not contain sufficient information to answer the query, respond with "Nimam dovolj informacij za odgovor na to vprašanje."
-Format the output as a JSON object with a single key "answer" containing the generated answer string.
-Example Output:
+You are an expert legal assistant and expert in Slovene language and legal system. 
+Your task is to generate a comprehensive and accurate answer in Slovene based on the provided legal documents and user query.
+
+Rules:
+1. Only answer based on the provided documents.
+2. Construct the answer using chunks provided; do not hallucinate.
+3. If the chunks do not contain enough info, respond with "Nimam dovolj informacij za odgovor na to vprašanje."
+4. Also provide a list of **article IDs** that you actually used to generate your answer. Some articles might have irrelevant information.
+
+Output JSON format:
+
 {
-  "answer": "<your-answer>"
+  "answer": "<your-answer>",
+  "used_articles": ["<article_id_1>", "<article_id_2>", ...]
 }
 """
 
@@ -49,7 +58,9 @@ def generate_answer_from_docs(user_query: str, documents: list):
                 ]
             }
         )
-        return response["structured_response"].answer
+        answer = response["structured_response"].answer
+        article_ids = response["structured_response"].article_ids
+        return answer, article_ids
     except Exception as e:
         print(f"Error generating answer: {e}")
         raise e
